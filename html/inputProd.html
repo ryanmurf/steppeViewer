@@ -1,0 +1,245 @@
+<html>
+  <head>
+		<style>
+			html, body, #fullheight {
+    				min-height: 100% !important;
+    				height: 100%;
+			}
+			#header {
+    				background-color:black;
+    				color:white;
+    				text-align:center;
+    				padding:5px;
+			}
+			#nav {
+				line-height:30px;
+      			background-color:#eeeeee;
+			    height:100%;
+				width:175px;
+				float:left;
+				padding:5px; 
+			}
+			#section {
+			    width:100%;
+				height:100%;
+			    float:middle;
+			    padding:10px; 
+			}
+			#footer {
+			    background-color:black;
+			    color:white;
+			    clear:both;
+				float:bottom;
+			    text-align:center;
+				width:100%;
+			    padding:5px; 
+			}
+			button.link { background:none;border:none; }
+		</style>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+    <script type="text/javascript">
+    		google.load("visualization", "1", {packages:["table"]});
+
+            function getUrlParameter(sParam)
+            {
+                var sPageURL = window.location.search.substring(1);
+                var sURLVariables = sPageURL.split('&');
+                for (var i = 0; i < sURLVariables.length; i++)
+                {
+                    var sParameterName = sURLVariables[i].split('=');
+                    if (sParameterName[0] == sParam)
+                    {
+                        return sParameterName[1];
+                    }
+                }
+            }
+
+		$(document).ready(function() {
+
+            function makeTable(TypeID, Type) {
+                $("#tables").append(""+Type+"<br><div id='table_"+Type+"' style='width:875px; height:275;'></div>");
+                var table = new google.visualization.Table(document.getElementById('table_'+Type));
+                var data = new google.visualization.DataTable();
+
+                var formatterVars = new google.visualization.NumberFormat({negativeColor: 'red', negativeParens: true, fractionDigits:4});
+
+                data.addColumn('number', 'Month');
+                data.addColumn('number', 'Litter');
+                data.addColumn('number', 'Biomass');
+                data.addColumn('number', 'PLive');
+                data.addColumn('number', 'LAI_conv');
+
+                $.ajax({
+                    url:"/sxw/input/prod",
+                    type: "GET",
+                    data: {project:$("#projects").val(), Name : "prod", Year:$("#Years").val(), Iteration:$("#Iterations").val(), VegType:TypeID},
+                    success:function(response) {
+                        data.addRows(response);
+                        for(var i=1; i<3; i++)
+                            formatterVars.format(data, i);
+                        table.draw(data, {showRowNumber: false});
+                    }
+                });
+            }
+      		
+		
+			function getData() {
+				$.ajax({
+					url:"/sxw/input/prod",
+					type: "GET",
+					data: {project:$("#projects").val(), Name : "prod", Year:$("#Years").val(), Iteration:$("#Iterations").val(), VegType:$("#VegProdType").val()},
+					success:function(response) {
+						data.addRows(response);
+						table.draw(data, {showRowNumber: false});
+					}
+				});
+			}
+	
+			function updateIterations() {
+				var number;
+				$.ajax({
+					url:"/info/iterations",
+					type: "GET",
+					data: {project:$("#projects").val()},
+					success:function(response) {
+						number = response
+						for(i=0; i<number; i++) {
+							$("#Iterations").append($("<option></option>")
+							.attr("value",i+1)
+							.text(i+1));
+						}
+					}
+				});
+			}
+			
+			function updateYears() {
+				var number;
+				$.ajax({
+					url:"/info/years",
+					type: "GET",
+					data: {project:$("#projects").val()},
+					success:function(response) {
+						$.each(response, function(i,item) {
+							$("#Years").append($("<option></option>")
+							.attr("value",item)
+							.text(item));
+						});
+                        updateVegProdType();
+					}
+				});
+			}
+
+            function updateVegProdType() {
+                for(var i=1; i<5; i++) {
+                    var Type = "";
+                    switch(i) {
+                        case 1:
+                            Type="Tree";
+                            break;
+                        case 2:
+                            Type="Shrub";
+                            break;
+                        case 3:
+                            Type="Grass";
+                            break;
+                        case 4:
+                            Type="Forb";
+                            break;
+                    }
+                    makeTable(i, Type)
+                }
+            }
+
+			function updateProjects() {
+                var project = getUrlParameter('project');
+                $.ajax({
+                    url:"/projects/",
+                    type: "GET",
+                    data: {},
+                    success:function(response) {
+                        $.each(response, function(i,item) {
+                            $("#projects").append($("<option></option>")
+                                    .attr("value",item)
+                                    .text(item));
+                        });
+                        if(project != undefined) {
+                            $("#projects option:contains("+project+")").prop('selected',true);
+                        }
+						updateIterations();
+						updateYears();
+					}
+				});
+			}
+			
+			
+			$("#VegProdType").change(function() {
+				drawTable();
+			});
+			$("#Years").change(function() {
+                $("#tables").html("");
+                updateVegProdType();
+			});
+			$("#Iterations").change(function() {
+                $("#tables").html("");
+                updateVegProdType();
+			});
+			$("#projects").change(function() {
+                $('#Iterations').find('option').remove().end();
+                $('#Years').find('option').remove().end();
+                $("#tables").html("");
+                updateIterations();
+                updateYears();
+			});
+			
+			updateProjects();
+            $("a").click(function() {
+                $(this).attr('href', $(this).attr('href')+"?project="+$("#projects").val());
+            });
+			//google.setOnLoadCallback(drawTable);
+			
+		});
+    </script>
+  </head>
+  <body>
+		<div id="header">
+			<h1>StepWat - SoilWat input/output Viewer</h1>
+		</div>
+		
+		<div id="nav">
+			Select Project <select id="projects"></select><br>
+			<a href="overallSummary.html">Summary</a>
+            <h3>SXW Data</h3>
+            <ul>
+                <li><a href="sxwXPhen.html">XPhen Table</a></li>
+                <li><a href="sxwRootsRel.html">Roots Relative</a></li>
+                <li><a href="sxwRootsSum.html">Roots Sum</a></li>
+            </ul>
+			<h3>SoilWat Input</h3>
+			<ul>
+				<li><a href="inputVars.html">Composition of Vegetation</a></li>
+				<li><a href="inputSoils.html">Soils Transpiration</a></li>
+				<li><a href="inputProd.html">Monthly Production</a></li>
+			</ul>
+			<h3>SoilWat Output</h3>
+			<ul>
+				<li><a href="outputVars.html">Variables</a></li>
+				<li><a href="outputRGroup.html">RGroup Info</a></li>
+				<li><a href="outputProd.html">Production Overview</a></li>
+				<li><a href="outputTranspiration.html">Transpiration Overview</a></li>
+                <li><a href="outputTransGroup.html">Transp By Rgroup VegType</a></li>
+			</ul>
+		</div>
+		
+		<div id="section1" style="overflow:hidden;">
+			Select Iteration: <select id="Iterations"></select>
+			Select Year: <select id="Years"></select>
+			<div id="tables"></div>
+		</div>
+		
+		<div id="footer">
+			Copyright @ drylandecohydrology.org
+		</div>
+		
+  </body>
+</html>

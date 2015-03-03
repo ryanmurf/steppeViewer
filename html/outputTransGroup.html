@@ -1,0 +1,283 @@
+<html>
+<head>
+    <style>
+        html, body, #fullheight {
+            min-height: 100% !important;
+            height: 100%;
+        }
+        #header {
+            background-color:black;
+            color:white;
+            text-align:center;
+            padding:5px;
+        }
+        #nav {
+            line-height:30px;
+            background-color:#eeeeee;
+            height:100%;
+            width:175px;
+            float:left;
+            padding:5px;
+        }
+        #section {
+            width:100%;
+            height:100%;
+            padding:10px;
+        }
+        #footer {
+            background-color:black;
+            color:white;
+            clear:both;
+            float:bottom;
+            text-align:center;
+            width:100%;
+            padding:5px;
+        }
+        button.link { background:none;border:none; }
+    </style>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+    <script type="text/javascript"
+            src="https://www.google.com/jsapi?autoload={
+            'modules':[{
+              'name':'visualization',
+              'version':'1',
+              'packages':['corechart']
+            }]
+          }"></script>
+    <script type="text/javascript">
+        google.load("visualization", "1", {packages:["table"]});
+        google.load("visualization", "1", {packages:["corechart"]});
+
+        var TranspTable;
+        var RGroups;
+        var BVT;
+
+        function getUrlParameter(sParam)
+        {
+            var sPageURL = window.location.search.substring(1);
+            var sURLVariables = sPageURL.split('&');
+            for (var i = 0; i < sURLVariables.length; i++)
+            {
+                var sParameterName = sURLVariables[i].split('=');
+                if (sParameterName[0] == sParam)
+                {
+                    return sParameterName[1];
+                }
+            }
+        }
+
+        $(document).ready(function() {
+
+            function makeChart(TypeID, Type) {
+                $("#lines_div").append(""+Type+"<br><div id='line_"+Type+"' style='width:100pc;'></div>");
+                var chart = new google.visualization.LineChart(document.getElementById("line_"+Type));
+                var data = new google.visualization.DataTable();
+
+                data.addColumn('number', 'Year');
+                data.addColumn('number', 'Total');
+
+                var TransGroupTable = new Array();
+
+                $.ajax({
+                    url:"/info/rgroups",
+                    type: "GET",
+                    data: {project:$("#projects").val(), VegType:TypeID},
+                    async: false,
+                    success:function(response) {
+                        $.each(response, function(i,item) {
+
+                            $.ajax({
+                                url:"/sxw/output/rgroup",
+                                type: "GET",
+                                data: {project:$("#projects").val(), Name : "table", Iteration:$("#Iterations").val(), RGroupID:RGroups.indexOf(item)+1},
+                                async: false,
+                                success:function(response) {
+                                    TransGroupTable.push(response);
+                                }
+                            });
+
+                            data.addColumn('number', item);
+                        });
+                    }
+                });
+
+                for(var i=0; i<TranspTable.getNumberOfRows(); i++) {
+                    data.addRow();
+                    for(var j=0; j<data.getNumberOfColumns(); j++) {
+                        if(j==0) {
+                            data.setCell(i,j,TranspTable.getValue(i,j));
+                        } else if(j==1) {
+                            data.setCell(i,j,TranspTable.getValue(i,TypeID+1)*BVT);
+                        } else {
+                            data.setCell(i,j,TransGroupTable[j-2][i][4]);
+                        }
+                    }
+                }
+
+                var options = {
+                    title: 'Transpiration Information',
+                    hAxis: {format:'0'},
+                    height: 500
+                };
+
+                chart.draw(data, options);
+
+            }
+
+            function updateIterations() {
+                var number;
+                $.ajax({
+                    url:"/info/iterations",
+                    type: "GET",
+                    data: {project:$("#projects").val()},
+                    success:function(response) {
+                        number = response
+                        for(i=0; i<number; i++) {
+                            $("#Iterations").append($("<option></option>")
+                                    .attr("value",i+1)
+                                    .text(i+1));
+                        }
+                        updateRGroups();
+                        updateVegProdType();
+                    }
+                });
+
+            }
+
+            $("#Iterations").change(function() {
+                $("#lines_div").html("");
+                updateVegProdType();
+            });
+            $("#projects").change(function() {
+                $('#Iterations').find('option').remove().end();
+                $("#lines_div").html("");
+                updateIterations();
+            });
+
+            function updateRGroups() {
+                var number;
+                $.ajax({
+                    url:"/info/rgroups",
+                    type: "GET",
+                    data: {project:$("#projects").val()},
+                    success:function(response) {
+                        RGroups = response;
+                    }
+                });
+            }
+
+            function updateVegProdType() {
+                $.ajax({
+                    url:"/sxw/output/transpiration",
+                    type: "GET",
+                    data: {project:$("#projects").val(),Name : "table", Iteration:$("#Iterations").val()},
+                    success:function(response) {
+                        TranspTable = new google.visualization.DataTable();
+                        TranspTable.addColumn('number', 'Year');
+                        TranspTable.addColumn('number', 'Total');
+                        TranspTable.addColumn('number', 'Tree');
+                        TranspTable.addColumn('number', 'Shrub');
+                        TranspTable.addColumn('number', 'Grass');
+                        TranspTable.addColumn('number', 'Forb');
+                        TranspTable.addRows(response);
+                        for(var i=1; i<5; i++) {
+                            var Type = "";
+                            switch(i) {
+                                case 1:
+                                    Type="Tree";
+                                    break;
+                                case 2:
+                                    Type="Shrub";
+                                    break;
+                                case 3:
+                                    Type="Grass";
+                                    break;
+                                case 4:
+                                    Type="Forb";
+                                    break;
+                            }
+                            makeChart(i, Type)
+                        }
+                    }
+                });
+            }
+
+            function updateProjects() {
+                var project = getUrlParameter('project');
+                $.ajax({
+                    url:"/projects/",
+                    type: "GET",
+                    data: {},
+                    success:function(response) {
+                        $.each(response, function(i,item) {
+                            $("#projects").append($("<option></option>")
+                                    .attr("value",item)
+                                    .text(item));
+                        });
+                        if(project != undefined) {
+                            $("#projects option:contains("+project+")").prop('selected',true);
+                        }
+                        $.ajax({
+                            url:"/info/",
+                            type: "GET",
+                            data: {project:$("#projects").val(), Name : "table"},
+                            async:false,
+                            success:function(response) {
+                                BVT = response.BVT;
+                            }
+                        });
+                        updateIterations();
+                    }
+                });
+            }
+
+            updateProjects();
+            $("a").click(function() {
+                $(this).attr('href', $(this).attr('href')+"?project="+$("#projects").val());
+            });
+        });
+    </script>
+</head>
+<body>
+<div id="header">
+    <h1>StepWat - SoilWat input/output Viewer</h1>
+</div>
+
+<div id="nav">
+    Select Project <select id="projects"></select><br>
+    <a href="overallSummary.html">Summary</a>
+    <h3>SXW Data</h3>
+    <ul>
+        <li><a href="sxwXPhen.html">XPhen Table</a></li>
+        <li><a href="sxwRootsRel.html">Roots Relative</a></li>
+        <li><a href="sxwRootsSum.html">Roots Sum</a></li>
+    </ul>
+    <h3>SoilWat Input</h3>
+    <ul>
+        <li><a href="inputVars.html">Composition of Vegetation</a></li>
+        <li><a href="inputSoils.html">Soils Transpiration</a></li>
+        <li><a href="inputProd.html">Monthly Production</a></li>
+    </ul>
+    <h3>SoilWat Output</h3>
+    <ul>
+        <li><a href="outputVars.html">Variables</a></li>
+        <li><a href="outputRGroup.html">RGroup Info</a></li>
+        <li><a href="outputProd.html">Production Overview</a></li>
+        <li><a href="outputTranspiration.html">Transpiration Overview</a></li>
+        <li><a href="outputTransGroup.html">Transp By Rgroup VegType</a></li>
+    </ul>
+</div>
+
+<div id="section1" style="overflow:auto; overflow-y:auto;">
+    Select Iteration: <select id="Iterations"></select>
+    <p>Total Transpiration for each group taken from sxwOutputTranspiration table by summing the types layers up and scaled using BVT so that it matches RGroup Transpiration.</p>
+    <div id="lines_div"></div>
+</div>
+
+<div id="footer">
+    Copyright @ drylandecohydrology.org
+</div>
+
+</body>
+</html>

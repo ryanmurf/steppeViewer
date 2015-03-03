@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<style>
+			html, body, #fullheight {
+    				min-height: 100% !important;
+    				height: 100%;
+			}
+			#header {
+    				background-color:black;
+    				color:white;
+    				text-align:center;
+    				padding:5px;
+			}
+			#nav {
+				line-height:30px;
+      			background-color:#eeeeee;
+			    height:100%;
+				width:175px;
+				float:left;
+				padding:5px; 
+			}
+			#section {
+			    width:100%;
+				height:100%;
+			    float:middle;
+			    padding:10px; 
+			}
+			#footer {
+			    background-color:black;
+			    color:white;
+			    clear:both;
+				float:bottom;
+			    text-align:center;
+				width:100%;
+			    padding:5px; 
+			}
+			button.link { background:none;border:none; }
+		</style>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+		<script type="text/javascript">
+
+            function getUrlParameter(sParam)
+            {
+                var sPageURL = window.location.search.substring(1);
+                var sURLVariables = sPageURL.split('&');
+                for (var i = 0; i < sURLVariables.length; i++)
+                {
+                    var sParameterName = sURLVariables[i].split('=');
+                    if (sParameterName[0] == sParam)
+                    {
+                        return sParameterName[1];
+                    }
+                }
+            }
+		
+			var description;
+		
+			$(document).ready(function() {
+				function getDescription() {
+					$.ajax({
+						url:"/projects/description",
+						type: "GET",
+						data: {project:$("#projects").val()},
+						success:function(response) {
+							description = response;
+							updateText();
+						}
+					});
+				}
+				
+				function updateProjects() {
+                    var project = getUrlParameter('project');
+                    $.ajax({
+                        url:"/projects/",
+                        type: "GET",
+                        data: {},
+                        success:function(response) {
+                            $.each(response, function(i,item) {
+                                $("#projects").append($("<option></option>")
+                                        .attr("value",item)
+                                        .text(item));
+                            });
+                            if(project != undefined) {
+                                $("#projects option:contains("+project+")").prop('selected',true);
+                            }
+							getDescription();
+						}
+					});
+				}
+				
+				function updateText() {
+                    getDescription();
+					$("#dPrj").text($("#projects").val());
+					$("#dDesc").text(description);
+				}
+				
+				$("#projects").change(function() {
+					updateText();
+				});
+				
+				updateProjects();
+
+                $("a").click(function() {
+                    $(this).attr('href', $(this).attr('href')+"?project="+$("#projects").val());
+                });
+			});
+	  	</script>
+		
+		<title>StepWat Debug Tool</title>
+	</head>
+	<body>
+		<div id="header">
+			<h1>StepWat - SoilWat input/output Viewer</h1>
+		</div>
+		
+		<div id="nav">
+			Select Project <select id="projects"></select><br>
+			<a href="overallSummary.html">Summary</a>
+            <h3>SXW Data</h3>
+            <ul>
+                <li><a href="sxwXPhen.html">XPhen Table</a></li>
+                <li><a href="sxwRootsRel.html">Roots Relative</a></li>
+                <li><a href="sxwRootsSum.html">Roots Sum</a></li>
+            </ul>
+			<h3>SoilWat Input</h3>
+			<ul>
+				<li><a href="inputVars.html">Composition of Vegetation</a></li>
+				<li><a href="inputSoils.html">Soils Transpiration</a></li>
+				<li><a href="inputProd.html">Monthly Production</a></li>
+			</ul>
+			<h3>SoilWat Output</h3>
+			<ul>
+				<li><a href="outputVars.html">Variables</a></li>
+				<li><a href="outputRGroup.html">RGroup Info</a></li>
+				<li><a href="outputProd.html">Production Overview</a></li>
+				<li><a href="outputTranspiration.html">Transpiration Overview</a></li>
+                <li><a href="outputTransGroup.html">Transp By Rgroup VegType</a></li>
+			</ul>
+		</div>
+		
+		<div id="section">
+			
+			<div id="Summary">
+				<h2><div id="dPrj" style="display:inline-block;"></div></h3>
+				<p><div id="dDesc" style="display:inline-block;"></div></p>
+			</div>
+		</div>
+		
+		<div id="footer">
+			Copyright @ drylandecohydrology.org
+		</div>
+	</body>
+</html>
